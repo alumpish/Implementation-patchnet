@@ -1,16 +1,16 @@
 output_dir: 'runs/save'
 log_dir: 'runs/logs'
-device: 'cuda:2'
+device: 'cuda:0'
 seed: 42
 dataset:
-  name: 'zalo'
-  root: '/home/taft/ALCON_SPC/detect/datasets/frame_classes_16'
+  name: 'ROSE'
+  root: '/mnt/f/ROSE'
   augmentation:
     rand_crop_size: 224
     rand_hori_flip: 0.5
     rand_rotation: 20
-  train_set: 'train_uniform.csv'
-  val_set: 'val_uniform.csv'
+  train_set: 'train.csv'
+  val_set: 'val.csv'
   mean: [0.5070, 0.4764, 0.4551]
   sigma: [0.2480, 0.2468, 0.2416]
 
@@ -20,7 +20,7 @@ model:
   image_size: [300, 300]
 
 train:
-  batch_size: 16
+  batch_size: 32
   optimizer: 'adam'
   lr: 0.002
   num_epochs: 300

@@ -2,22 +2,19 @@ import os
 import sys
 import numpy as np
 import torch
-import warnings
-import torch.nn as nn
 import torch.backends.cudnn as cudnn
-from torchvision import transforms, datasets
+from torchvision import transforms
 from torch.optim.lr_scheduler import StepLR
 from torch.utils.tensorboard import SummaryWriter
 
 ROOT = os.getcwd()
 if str(ROOT) not in sys.path:
     sys.path.append(str(ROOT))
-    
+
 from engine.Patchnet_trainer import Trainer
 from metrics.losses import PatchLoss
 from dataset.FAS_dataset import FASDataset
-from utils.utils import read_cfg, get_optimizer, build_network, \
-    get_device, get_rank
+from utils.utils import read_cfg, get_optimizer, build_network, get_device, get_rank
 
 cfg = read_cfg(cfg_file='config/config.yaml')
 
@@ -36,10 +33,7 @@ lr_scheduler = StepLR(optimizer=optimizer, step_size=90, gamma=0.5)
 criterion = PatchLoss().to(device=device)
 writer = SummaryWriter(cfg['log_dir'])
 
-# dump_input = torch.randn((1, 3, cfg['dataset']['augmentation']['rand_crop_size'], cfg['dataset']['augmentation']['rand_crop_size']))
-# writer.add_graph(model, dump_input)
 
-# Without Resize transform, images are of different sizes and it causes an error
 train_transform = transforms.Compose([
     transforms.Resize(cfg['model']['image_size']),
     transforms.RandomCrop(cfg['dataset']['augmentation']['rand_crop_size']),

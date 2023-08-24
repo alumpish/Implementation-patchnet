@@ -10,7 +10,7 @@ class BaseTrainer():
         self.valloader = valloader
         self.writer = writer
 
-    
+
     def load_model(self):
         raise NotImplementedError
 

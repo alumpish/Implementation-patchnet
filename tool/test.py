@@ -2,9 +2,7 @@ import os
 import sys
 import cv2
 import numpy as np
-from PIL import Image
 import glob
-from tqdm import tqdm
 import pandas as pd
 
 import torch
@@ -28,7 +26,7 @@ if __name__ == '__main__':
     network = build_network(cfg, device)
     network = network.to(device)
     loss = PatchLoss().to(device)
-    saved_name = "/home/taft/ALCON_SPC/detect/NEW_PATCHNET/runs/save/CDCNpp_196_0.21588014953797965.pth"
+    saved_name = "/mnt/f/Implementation-patchnet-main/runs/save/swin_base_28_1.6642424220423864.pth"
     state = torch.load(saved_name)
 
     network.load_state_dict(state['state_dict'])
@@ -43,26 +41,26 @@ if __name__ == '__main__':
         transforms.ToTensor(),
         transforms.Normalize(cfg['dataset']['mean'], cfg['dataset']['sigma'])
     ])
-    
-    test_data_path = "/home/taft/ALCON_SPC/detect/datasets/public_test_2/videos/*"
-    result_path = "/home/taft/ALCON_SPC/detect/result_cdcnpp.csv"
+
+    test_data_path = "/mnt/f/ROSE/videos/*"
+    result_path = "/mnt/f/mplementation-patchnet-main/result.csv"
     d = {"fname":[], "liveness_score":[]}
 
     videos = glob.glob(test_data_path)
-    
+
     for i, video in enumerate(videos):
         vid_name, ext = os.path.splitext(os.path.basename(video))
         vidcap = cv2.VideoCapture(video)
         success = True
         live_counter = 0
         spoof_counter = 0
-        
+
         no_frames = frame_count(video, manual=True)
         delta = 3
         ranges = list(np.array_split(range(no_frames), delta))
         frame2choose = [np.random.choice(r) for r in ranges]
         print("Processing video {}".format(vid_name))
-        
+
         currentframe = 0
         while True:
             success, src = vidcap.read()
@@ -72,7 +70,7 @@ if __name__ == '__main__':
                     continue
                 else:
                     score_lst = []
-                    
+
                     for i in range(3):
                         image = cv2.cvtColor(src, cv2.COLOR_BGR2RGB)
                         image = transform(image)
@@ -87,12 +85,12 @@ if __name__ == '__main__':
                         live_counter += 1
                     else:
                         spoof_counter += 1
-                    
+
                     currentframe += 1
-            
+
             else:
                 break
-                    
+
         d["fname"].append(os.path.basename(video))
         if live_counter > spoof_counter:
             d["liveness_score"].append(1)
@@ -101,6 +99,11 @@ if __name__ == '__main__':
             d["liveness_score"].append(0)
             print("Spoof: {}".format(spoof_counter / (live_counter + spoof_counter) * 100))
 
+    correct = 0
+    for vid, score in zip(d["fname"], d["liveness_score"]):
+        if vid.split("_")[0] == "G" and score == 1 or vid.split("_")[0] != "G" and score == 0:
+            correct += 1
+    print("Accuracy: {}".format(correct / len(d["fname"])))
+
     df = pd.DataFrame(data=d)
     df.to_csv(result_path, index=False)
-

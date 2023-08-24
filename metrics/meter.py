@@ -1,8 +1,3 @@
-import os
-import numpy as np
-import torch
-
-
 class AvgMeter():
     def __init__(self, writer, name, num_iter_per_epoch, per_iter_vis=False):
         self.writer = writer

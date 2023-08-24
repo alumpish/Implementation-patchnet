@@ -1,19 +1,16 @@
 import os
-from random import randint
 import torch
-import torchvision
 import torch.nn.functional as F
 from engine.base_trainer import BaseTrainer
 from metrics.meter import AvgMeter
-from tqdm import tqdm
-import time
 from utils.utils import calc_acc
+
 
 class Trainer(BaseTrainer):
     def __init__(self, cfg, network, optimizer, loss, lr_scheduler, device, trainloader, valloader, writer):
         super(Trainer, self).__init__(cfg, network, optimizer, loss, lr_scheduler, device, trainloader, valloader, writer)
         self.network = self.network.to(device)
-        
+
         self.train_loss_metric = AvgMeter(writer=writer, name='Loss/train', num_iter_per_epoch=len(self.trainloader), per_iter_vis=True)
         self.train_acc_metric = AvgMeter(writer=writer, name='Accuracy/train', num_iter_per_epoch=len(self.trainloader), per_iter_vis=True)
 
@@ -28,7 +25,7 @@ class Trainer(BaseTrainer):
         self.optimizer.load_state_dict(state['optimizer'])
         self.network.load_state_dict(state['state_dict'])
         self.loss.load_state_dict(state['loss'])
-        
+
     def save_model(self, epoch, val_loss):
         if not os.path.exists(self.cfg['output_dir']):
             os.makedirs(self.cfg['output_dir'])
@@ -42,11 +39,10 @@ class Trainer(BaseTrainer):
             'optimizer': self.optimizer.state_dict(),
             'loss': self.loss.state_dict()
         }
-        
-        torch.save(state, saved_name)
-        
-    def train_one_epoch(self, epoch):
 
+        torch.save(state, saved_name)
+
+    def train_one_epoch(self, epoch):
         self.network.train()
         self.train_loss_metric.reset(epoch)
         self.train_acc_metric.reset(epoch)
@@ -66,33 +62,28 @@ class Trainer(BaseTrainer):
             acc1 = calc_acc(score1, label.squeeze().type(torch.int32))
             acc2 = calc_acc(score2, label.squeeze().type(torch.int32))
             accuracy = (acc1 + acc2) / 2
-            
-            # Update metrics
+
             self.train_loss_metric.update(loss.item())
             self.train_acc_metric.update(accuracy)
 
             print('Epoch: {:3}, iter: {:5}, loss: {:.5}, acc: {:.5}'.\
                 format(epoch, epoch * len(self.trainloader) + i, \
                 self.train_loss_metric.avg, self.train_acc_metric.avg))
-        
+
         if self.lr_scheduler is not None:
             self.lr_scheduler.step()
-            
+
     def train(self):
         for epoch in range(self.cfg['train']['num_epochs']):
             self.train_one_epoch(epoch)
             epoch_loss = self.validate(epoch)
-            # if epoch_acc > self.best_val_acc:
-            #     self.best_val_acc = epoch_acc
             self.save_model(epoch, epoch_loss)
-            
+
     def validate(self, epoch):
         self.network.eval()
         self.val_loss_metric.reset(epoch)
         self.val_acc_metric.reset(epoch)
 
-        seed = randint(0, len(self.valloader)-1)
-        
         with torch.no_grad():
             for i, (img1, img2, label) in enumerate(self.valloader):
                 img1, img2, label = img1.to(self.device), img2.to(self.device), label.to(self.device)
@@ -107,13 +98,11 @@ class Trainer(BaseTrainer):
                 acc2 = calc_acc(score2, label.squeeze().type(torch.int32))
                 accuracy = (acc1 + acc2) / 2
 
-                # Update metrics
                 self.val_loss_metric.update(loss.item())
                 self.val_acc_metric.update(accuracy)
-        
+
         print("Validation epoch {} =============================".format(epoch))
         print("Epoch: {:3}, loss: {:.5}, acc: {:.5}".format(epoch, self.val_loss_metric.avg, self.val_acc_metric.avg))
         print("=================================================")
 
         return self.val_loss_metric.avg
-                
