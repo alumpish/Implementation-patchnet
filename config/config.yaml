@@ -13,12 +13,10 @@ dataset:
   val_set: 'val.csv'
   mean: [0.5070, 0.4764, 0.4551]
   sigma: [0.2480, 0.2468, 0.2416]
-
 model:
-  base: 'swin_base'
+  base: 'resnet18'
   pretrained: True
   image_size: [300, 300]
-
 train:
   batch_size: 32
   optimizer: 'adam'

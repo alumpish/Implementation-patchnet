@@ -54,14 +54,12 @@ trainset = FASDataset(
     root_dir=cfg['dataset']['root'],
     transform=train_transform,
     csv_file=cfg['dataset']['train_set'],
-    is_train=True
 )
 
 valset = FASDataset(
     root_dir=cfg['dataset']['root'],
     transform=val_transform,
     csv_file=cfg['dataset']['val_set'],
-    is_train=False
 )
 
 trainloader = torch.utils.data.DataLoader(

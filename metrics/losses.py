@@ -51,7 +51,6 @@ class AdMSoftmaxLoss(nn.Module):
 
 
 class PatchLoss(nn.Module):
-
     def __init__(self, alpha1=1.0, alpha2=1.0):
         super().__init__()
         self.alpha1 = alpha1
