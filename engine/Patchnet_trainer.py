@@ -7,19 +7,29 @@ from utils.utils import calc_acc
 
 
 class Trainer(BaseTrainer):
-    def __init__(self, cfg, network, optimizer, loss, lr_scheduler, device, trainloader, valloader, writer):
-        super(Trainer, self).__init__(cfg, network, optimizer, loss, lr_scheduler, device, trainloader, valloader, writer)
+    def __init__(self, cfg, network, optimizer, loss, lr_scheduler, device, label_dict, trainloader, valloader, writer):
+        super(Trainer, self).__init__(cfg, network, optimizer, loss,
+                                      lr_scheduler, device, trainloader, valloader, writer)
         self.network = self.network.to(device)
 
-        self.train_loss_metric = AvgMeter(writer=writer, name='Loss/train', num_iter_per_epoch=len(self.trainloader), per_iter_vis=True)
-        self.train_acc_metric = AvgMeter(writer=writer, name='Accuracy/train', num_iter_per_epoch=len(self.trainloader), per_iter_vis=True)
+        self.train_loss_metric = AvgMeter(writer=writer, name='Loss/train',
+                                          num_iter_per_epoch=len(self.trainloader), per_iter_vis=True)
+        self.train_acc_metric = AvgMeter(writer=writer, name='Accuracy/train',
+                                         num_iter_per_epoch=len(self.trainloader), per_iter_vis=True)
+        self.train_binary_acc_metric = AvgMeter(
+            writer=writer, name='Binary_Accuracy/train', num_iter_per_epoch=len(self.trainloader),
+            per_iter_vis=True)
 
         self.val_loss_metric = AvgMeter(writer=writer, name='Loss/val', num_iter_per_epoch=len(self.valloader))
         self.val_acc_metric = AvgMeter(writer=writer, name='Accuracy/val', num_iter_per_epoch=len(self.valloader))
+        self.val_binary_acc_metric = AvgMeter(writer=writer, name='Binary_Accuracy/val',
+                                              num_iter_per_epoch=len(self.valloader))
+
+        self.label_dict = label_dict
 
     def load_model(self):
-        saved_name = os.path.join(self.cfg['output_dir'], '{}_{}.pth'.\
-            format(self.cfg['model']['base'], self.cfg['dataset']['name']))
+        saved_name = os.path.join(self.cfg['output_dir'], '{}_{}.pth'.
+                                  format(self.cfg['model']['base'], self.cfg['dataset']['name']))
         state = torch.load(saved_name)
 
         self.optimizer.load_state_dict(state['optimizer'])
@@ -30,8 +40,8 @@ class Trainer(BaseTrainer):
         if not os.path.exists(self.cfg['output_dir']):
             os.makedirs(self.cfg['output_dir'])
 
-        saved_name = os.path.join(self.cfg['output_dir'], '{}_{}_{}.pth'.\
-            format(self.cfg['model']['base'], epoch, val_loss))
+        saved_name = os.path.join(self.cfg['output_dir'], '{}_{}_{}.pth'.
+                                  format(self.cfg['model']['base'], epoch, val_loss))
 
         state = {
             'epoch': epoch,
@@ -46,29 +56,32 @@ class Trainer(BaseTrainer):
         self.network.train()
         self.train_loss_metric.reset(epoch)
         self.train_acc_metric.reset(epoch)
+        self.train_binary_acc_metric.reset(epoch)
 
-        for i, (img1, img2, label) in enumerate(self.trainloader):
+        for i, (img1, img2, label, is_spoof) in enumerate(self.trainloader):
             img1, img2, label = img1.to(self.device), img2.to(self.device), label.to(self.device)
             feature1 = self.network(img1)
             feature2 = self.network(img2)
             self.optimizer.zero_grad()
-            loss = self.loss(feature1, feature2, label)
+            loss = self.loss(feature1, feature2, label, is_spoof)
             loss.backward()
             self.optimizer.step()
 
             score1 = F.softmax(self.loss.amsm_loss.s * self.loss.amsm_loss.fc(feature1.squeeze()), dim=1)
             score2 = F.softmax(self.loss.amsm_loss.s * self.loss.amsm_loss.fc(feature2.squeeze()), dim=1)
 
-            acc1 = calc_acc(score1, label.squeeze().type(torch.int32))
-            acc2 = calc_acc(score2, label.squeeze().type(torch.int32))
+            acc1, binary_acc1 = calc_acc(score1, label.squeeze().type(torch.int32), self.label_dict)
+            acc2, binary_acc2 = calc_acc(score2, label.squeeze().type(torch.int32), self.label_dict)
             accuracy = (acc1 + acc2) / 2
+            binary_accuracy = (binary_acc1 + binary_acc2) / 2
 
             self.train_loss_metric.update(loss.item())
             self.train_acc_metric.update(accuracy)
+            self.train_binary_acc_metric.update(binary_accuracy)
 
-            print('Epoch: {:3}, iter: {:5}, loss: {:.5}, acc: {:.5}'.\
-                format(epoch, epoch * len(self.trainloader) + i, \
-                self.train_loss_metric.avg, self.train_acc_metric.avg))
+            print('Epoch: {:3}, iter: {:5}, loss: {:.5}, acc: {:.5}, binary_acc: {:.5}'.
+                  format(epoch, epoch * len(self.trainloader) + i,
+                         self.train_loss_metric.avg, self.train_acc_metric.avg, self.train_binary_acc_metric.avg))
 
         if self.lr_scheduler is not None:
             self.lr_scheduler.step()
@@ -83,26 +96,30 @@ class Trainer(BaseTrainer):
         self.network.eval()
         self.val_loss_metric.reset(epoch)
         self.val_acc_metric.reset(epoch)
+        self.val_binary_acc_metric.reset(epoch)
 
         with torch.no_grad():
-            for i, (img1, img2, label) in enumerate(self.valloader):
+            for i, (img1, img2, label, is_spoof) in enumerate(self.valloader):
                 img1, img2, label = img1.to(self.device), img2.to(self.device), label.to(self.device)
                 feature1 = self.network(img1)
                 feature2 = self.network(img2)
-                loss = self.loss(feature1, feature2, label)
+                loss = self.loss(feature1, feature2, label, is_spoof)
 
                 score1 = F.softmax(self.loss.amsm_loss.s * self.loss.amsm_loss.fc(feature1.squeeze()), dim=1)
                 score2 = F.softmax(self.loss.amsm_loss.s * self.loss.amsm_loss.fc(feature2.squeeze()), dim=1)
 
-                acc1 = calc_acc(score1, label.squeeze().type(torch.int32))
-                acc2 = calc_acc(score2, label.squeeze().type(torch.int32))
+                acc1, binary_acc1 = calc_acc(score1, label.squeeze().type(torch.int32), self.label_dict)
+                acc2, binary_acc2 = calc_acc(score2, label.squeeze().type(torch.int32), self.label_dict)
                 accuracy = (acc1 + acc2) / 2
+                binary_accuracy = (binary_acc1 + binary_acc2) / 2
 
                 self.val_loss_metric.update(loss.item())
                 self.val_acc_metric.update(accuracy)
+                self.val_binary_acc_metric.update(binary_accuracy)
 
         print("Validation epoch {} =============================".format(epoch))
-        print("Epoch: {:3}, loss: {:.5}, acc: {:.5}".format(epoch, self.val_loss_metric.avg, self.val_acc_metric.avg))
+        print("Epoch: {:3}, loss: {:.5}, acc: {:.5}, binary_acc: {:.5}".format(
+            epoch, self.val_loss_metric.avg, self.val_acc_metric.avg, self.val_binary_acc_metric.avg))
         print("=================================================")
 
         return self.val_loss_metric.avg

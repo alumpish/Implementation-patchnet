@@ -14,7 +14,10 @@ if str(ROOT) not in sys.path:
 from engine.Patchnet_trainer import Trainer
 from metrics.losses import PatchLoss
 from dataset.FAS_dataset import FASDataset
+from dataset.FAS_labels import FASLabels
 from utils.utils import read_cfg, get_optimizer, build_network, get_device, get_rank
+
+
 
 cfg = read_cfg(cfg_file='config/config.yaml')
 
@@ -34,6 +37,13 @@ criterion = PatchLoss().to(device=device)
 writer = SummaryWriter(cfg['log_dir'])
 
 
+fas_labels = FASLabels(
+    root_dir=cfg['dataset']['root'],
+    label_dir=cfg['label_dir'],
+    train_csv=cfg['dataset']['train_set'],
+    val_csv=cfg['dataset']['val_set']
+)
+
 train_transform = transforms.Compose([
     transforms.Resize(cfg['model']['image_size']),
     transforms.RandomCrop(cfg['dataset']['augmentation']['rand_crop_size']),
@@ -52,14 +62,16 @@ val_transform = transforms.Compose([
 
 trainset = FASDataset(
     root_dir=cfg['dataset']['root'],
-    transform=train_transform,
     csv_file=cfg['dataset']['train_set'],
+    fas_labels=fas_labels,
+    transform=train_transform,
 )
 
 valset = FASDataset(
     root_dir=cfg['dataset']['root'],
-    transform=val_transform,
     csv_file=cfg['dataset']['val_set'],
+    fas_labels=fas_labels,
+    transform=val_transform,
 )
 
 trainloader = torch.utils.data.DataLoader(
@@ -83,6 +95,7 @@ trainer = Trainer(
     loss=criterion,
     lr_scheduler=lr_scheduler,
     device=device,
+    label_dict=fas_labels.label_dict,
     trainloader=trainloader,
     valloader=valloader,
     writer=writer

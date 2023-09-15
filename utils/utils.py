@@ -12,10 +12,18 @@ import cv2
 from models.resnet18 import FeatureExtractor
 
 
-def calc_acc(pred, target):
+def calc_acc(pred, target, label_dict):
     pred = torch.argmax(pred, dim=1)
+    target = torch.argmax(target, dim=1)
     equal = torch.mean(pred.eq(target).type(torch.FloatTensor))
-    return equal.item()
+
+    label_values = list(label_dict.values())
+
+    binary_pred = torch.tensor([label_values[i] for i in pred.tolist()])
+    binary_target = torch.tensor([label_values[i] for i in target.tolist()])
+    binary_equal = torch.mean(binary_pred.eq(binary_target).type(torch.FloatTensor))
+
+    return equal.item(), binary_equal.item()
 
 
 def compute_eer(labels, scores):

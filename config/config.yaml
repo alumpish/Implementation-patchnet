@@ -1,5 +1,6 @@
 output_dir: 'runs/save'
 log_dir: 'runs/logs'
+label_dir: 'runs/labels'
 device: 'cuda:0'
 seed: 42
 dataset:
@@ -21,7 +22,7 @@ train:
   batch_size: 32
   optimizer: 'adam'
   lr: 0.002
-  num_epochs: 300
+  num_epochs: 200
 
 val:
   batch_size: 16

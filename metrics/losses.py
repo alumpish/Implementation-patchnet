@@ -24,7 +24,7 @@ class AdMSoftmaxLoss(nn.Module):
         self.out_features = out_features
         self.fc = nn.Linear(in_features, out_features, bias=False)
 
-    def forward(self, x, labels):
+    def forward(self, x, labels, is_spoof):
         '''
         input: 
             x shape (N, in_features)
@@ -40,9 +40,10 @@ class AdMSoftmaxLoss(nn.Module):
         x = F.normalize(x, dim=1)
 
         wf = self.fc(x)
-        m = torch.tensor([self.m[ele] for ele in labels]).to(x.device)
-        numerator = self.s * (torch.diagonal(wf.transpose(0, 1)[labels]) - m)
-        excl = torch.cat([torch.cat((wf[i, :y], wf[i, y+1:])).unsqueeze(0) for i, y in enumerate(labels)], dim=0)
+        m = torch.tensor([self.m[ele] for ele in is_spoof]).to(x.device)
+        numerator = self.s * (torch.diagonal(wf.transpose(0, 1)[labels.argmax(dim=1)]) - m)
+        excl = torch.cat([torch.cat((wf[i, :y.argmax()], wf[i, y.argmax()+1:])).unsqueeze(0)
+                         for i, y in enumerate(is_spoof)], dim=0)
         denominator = torch.exp(numerator) + torch.sum(torch.exp(self.s * excl), dim=1)
 
         L = numerator - torch.log(denominator)
@@ -56,11 +57,11 @@ class PatchLoss(nn.Module):
         self.alpha1 = alpha1
         self.alpha2 = alpha2
         self.sim_loss = SimilarityLoss()
-        self.amsm_loss = AdMSoftmaxLoss(512, 2)
+        self.amsm_loss = AdMSoftmaxLoss(512, 40)
 
-    def forward(self, x1, x2, label):
-        amsm_loss1 = self.amsm_loss(x1.squeeze(), label.type(torch.long).squeeze())
-        amsm_loss2 = self.amsm_loss(x2.squeeze(), label.type(torch.long).squeeze())
+    def forward(self, x1, x2, label, is_spoof):
+        amsm_loss1 = self.amsm_loss(x1.squeeze(), label.type(torch.long).squeeze(), is_spoof)
+        amsm_loss2 = self.amsm_loss(x2.squeeze(), label.type(torch.long).squeeze(), is_spoof)
         x1 = F.normalize(x1, dim=1)
         x2 = F.normalize(x2, dim=1)
         sim_loss = self.sim_loss(x1, x2)
