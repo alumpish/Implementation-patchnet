@@ -21,13 +21,16 @@ from utils.utils import read_cfg, build_network, get_device, frame_count
 if __name__ == '__main__':
     cfg = read_cfg(cfg_file='config/config.yaml')
 
+    label_dict = np.load(os.path.join(cfg['label_dir'], "label_dict.npy"), allow_pickle=True).item()
+
     device = get_device(cfg)
 
     network = build_network(cfg, device)
     network = network.to(device)
-    loss = PatchLoss().to(device)
-    saved_name = "/mnt/f/Implementation-patchnet-main/runs/save/swin_base_28_1.6642424220423864.pth"
+    loss = PatchLoss(len(label_dict)).to(device)
+    saved_name = "/mnt/c/Users/apady/Desktop/Implementation-patchnet/runs/save/resnet18_23_10.453288693464438.pth"
     state = torch.load(saved_name)
+
 
     network.load_state_dict(state['state_dict'])
     loss.load_state_dict(state["loss"])
@@ -43,7 +46,7 @@ if __name__ == '__main__':
     ])
 
     test_data_path = "/mnt/f/ROSE/videos/*"
-    result_path = "/mnt/f/mplementation-patchnet-main/result.csv"
+    result_path = "/mnt/c/Users/apady/Desktop/Implementation-patchnet/result.csv"
     d = {"fname":[], "liveness_score":[]}
 
     videos = glob.glob(test_data_path)
@@ -80,11 +83,15 @@ if __name__ == '__main__':
                         score = F.softmax(loss.amsm_loss.s * loss.amsm_loss.fc(feature.squeeze()), dim=0)
                         score_lst.append(score)
 
-                    res = torch.argmax(sum(score_lst) / len(score_lst))
-                    if res == 1:
+                    score_lst = torch.stack(score_lst)
+                    score_lst = torch.argmax(score_lst, dim=1)
+                    res = torch.mode(score_lst).values.item()
+
+                    if list(label_dict.values())[res] == 1:
                         live_counter += 1
                     else:
                         spoof_counter += 1
+                    
 
                     currentframe += 1
 

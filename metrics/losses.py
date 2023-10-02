@@ -52,12 +52,12 @@ class AdMSoftmaxLoss(nn.Module):
 
 
 class PatchLoss(nn.Module):
-    def __init__(self, alpha1=1.0, alpha2=1.0):
+    def __init__(self, num_classes, alpha1=1.0, alpha2=1.0):
         super().__init__()
         self.alpha1 = alpha1
         self.alpha2 = alpha2
         self.sim_loss = SimilarityLoss()
-        self.amsm_loss = AdMSoftmaxLoss(512, 40)
+        self.amsm_loss = AdMSoftmaxLoss(512, num_classes)
 
     def forward(self, x1, x2, label, is_spoof):
         amsm_loss1 = self.amsm_loss(x1.squeeze(), label.type(torch.long).squeeze(), is_spoof)

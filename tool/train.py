@@ -27,22 +27,21 @@ torch.manual_seed(seed)
 np.random.seed(seed)
 cudnn.benchmark = True
 
-# build model and engine
-device = get_device(cfg)
-model = build_network(cfg, device)
-model.to(device)
-optimizer = get_optimizer(cfg, model)
-lr_scheduler = StepLR(optimizer=optimizer, step_size=90, gamma=0.5)
-criterion = PatchLoss().to(device=device)
-writer = SummaryWriter(cfg['log_dir'])
-
-
 fas_labels = FASLabels(
     root_dir=cfg['dataset']['root'],
     label_dir=cfg['label_dir'],
     train_csv=cfg['dataset']['train_set'],
     val_csv=cfg['dataset']['val_set']
 )
+
+# build model and engine
+device = get_device(cfg)
+model = build_network(cfg, device)
+model.to(device)
+optimizer = get_optimizer(cfg, model)
+lr_scheduler = StepLR(optimizer=optimizer, step_size=90, gamma=0.5)
+criterion = PatchLoss(len(fas_labels.label_dict)).to(device=device)
+writer = SummaryWriter(cfg['log_dir'])
 
 train_transform = transforms.Compose([
     transforms.Resize(cfg['model']['image_size']),

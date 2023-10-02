@@ -4,14 +4,17 @@ label_dir: 'runs/labels'
 device: 'cuda:0'
 seed: 42
 dataset:
-  name: 'ROSE'
-  root: '/mnt/f/ROSE'
+  dirs:
+    rose : '/mnt/f/ROSE-YOUTU'
+    oulu : '/mnt/f/oulu'
+    msu_mfsd : '/mnt/f/MSU_MFSD'
+  root: '/mnt/f/dataset'
+  train_set: 'train.csv'
+  val_set: 'val.csv'
   augmentation:
     rand_crop_size: 224
     rand_hori_flip: 0.5
     rand_rotation: 20
-  train_set: 'train.csv'
-  val_set: 'val.csv'
   mean: [0.5070, 0.4764, 0.4551]
   sigma: [0.2480, 0.2468, 0.2416]
 model:
@@ -23,6 +26,9 @@ train:
   optimizer: 'adam'
   lr: 0.002
   num_epochs: 200
-
 val:
   batch_size: 16
+preprocess:
+  crop: False
+  frame_per_video: 3
+  datasets: [oulu]
